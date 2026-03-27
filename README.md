@@ -1,6 +1,5 @@
 # Пайплайн eQTL-влияние неандертальской интрогрессии
 ## Структура файлов
-
 ```
 nd_pipeline/                        рабочая директория
 ├── data/
@@ -44,6 +43,7 @@ tail -f logs/slurm_pipelineA_<job_id>.log
 # Или
 bash run_01_pipeline_A.sh 2>&1 | tee pipeline_A.log
 ```
+
 ```
 Подготовка данных для основного анализа 
 1. Нарезаем chr6 на окна 1000 bp
@@ -61,7 +61,7 @@ bash run_01_pipeline_A.sh 2>&1 | tee pipeline_A.log
 Итоговый файл: results/pipeline_A/chr6_windows_full.tsv
 ```
 
-## Шаг 3: Pipeline B, субпопуляции и поляризация Vindija
+## Шаг 3: Pipeline B (субпопуляции и поляризация Vindija)
 
 ```bash
 cd ~/nd_pipeline
@@ -70,6 +70,7 @@ tail -f logs/slurm_pipelineB_<job_id>.log
 # Или
 bash run_02_pipeline_B.sh 2>&1 | tee pipeline_B.log
 ```
+
 ```
 Подготовка данных для cпецанализа
 1. Группируем гаплотипы по субпопуляциям
@@ -123,12 +124,12 @@ sbatch run_04_visualize.sh
 bash run_04_visualize.sh
 ```
 ```
-| `fig1_iSFS.png/pdf` | Спектр частот интрогрессии (barplot, log-шкала) |
-| `fig2_manhattan.png/pdf` | Manhattan plot Fw по chr6 |
-| `fig3_violin_boxplot.png/pdf` | Violin + Boxplot: Fw_bin vs Sw |
-| `fig4_split_violin.png/pdf` | Split Violin: интрогрессия vs контроль по D_TSS |
-| `fig5_scatter_adaptive.png/pdf` | Scatter Fw vs Sw, кандидаты выделены красным |
-| `fig6_summary_panel.png/pdf` | Сводная панель всех результатов |
+fig1_iSFS.png/pdf - спектр частот интрогрессии (barplot, log-шкала)
+fig2_manhattan.png/pdf - Manhattan plot Fw (chr6)
+fig3_violin_boxplot.png/pdf - Violin + Boxplot: Fw_bin и Sw 
+fig4_split_violin.png/pdf - Split Violin: интрогрессия и  контроль по D_TSS
+fig5_scatter_adaptive.png/pdf - Scatter Fw и Sw
+fig6_summary_panel.png/pdf - все результаты
 ```
 
 ## Теперь можно скачать картинки локально
