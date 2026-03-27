@@ -31,11 +31,8 @@ mkdir -p ~/nd_pipeline/{data/{raw,hapmap,gtex,vindija,gencode},scripts,results,l
 
 ```bash
 cd ~/nd_pipeline
-sbatch run_00_download.sh
-tail -f logs/slurm_download_<job_id>.log
-# Или
-bash run_00_download.sh
 ```
+### Выполнить все, что указано в 00_download_data.sh
 
 ## Шаг 2: Pipeline A (препроцессинг)
 
