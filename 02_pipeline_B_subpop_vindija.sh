@@ -160,7 +160,7 @@ echo "[$(date)] Шаг 1 завершен"
 echo "[$(date)] Шаг 2: Поляризация eQTL на Vindija 33.19..."
 # наличие VCF
 if [ ! -f "$VINDIJA_VCF" ]; then
-    echo "  ОШИБКА: Vindija VCF не найден: $VINDIJA_VCF"
+    echo "  ошибка. Vindija VCF не найден: $VINDIJA_VCF"
     echo "  Проверьте скачивание в 00_download_data.sh"
     exit 1
 fi
