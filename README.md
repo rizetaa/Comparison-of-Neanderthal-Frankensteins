@@ -6,17 +6,17 @@
 ```
 nd_pipeline/                        рабочая директория
 ├── data/
-│   ├── raw/                        (IBS.YRI.grch37.chr6.em.tsv)
+│   ├── raw/                        (IBS.YRI.grch37.chrN.em.tsv)
 │   ├── hapmap/                     карта рекомбинации HapMap II
 │   ├── gtex/                       GTEx v7 cis-eQTL
-│   ├── vindija/                    Vindija 33.19 VCF (chr6)
+│   ├── vindija/                    Vindija 33.19 VCF
 │   └── gencode/                    GENCODE v19 GTF
 ├── scripts/                        
 ├── results/
 │   ├── pipeline_A/                 окна, Fw, Sw, D_TSS, recomb
 │   ├── pipeline_B/                 убпопуляции, поляризация Vindija
 │   ├── analysis/                   регрессии, bootstrap, кандидаты
-│   └── figures/                    все графики, рисунки рисунки
+│   └── figures/                    все графики, рисунки
 └── logs/                           логи SLURM
 ```
 ## 0. Подготовка
