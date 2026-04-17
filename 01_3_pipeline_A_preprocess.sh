@@ -1,7 +1,5 @@
 #!/bin/bash
 # Pipeline A, препроцессинг для основного анализа
-# Надо установить bedtools, python3 (pandas, numpy), tabix
-# Запуск через SLURM - sbatch run_01.sh
 
 set -euo pipefail
 WORKDIR="$HOME/nd_pipeline"
@@ -21,10 +19,9 @@ HAPMAP="$DATA/hapmap/hapmap_chr6.txt"
 GENCODE_GTF="$DATA/gencode/gencode.v19.annotation.gtf"
 GTEX_DIR="$DATA/gtex/GTEx_Analysis_v7_eQTL"
 OUT="$RES/pipeline_A"
-
 CHR6_LEN=171115067
 
-# Вычисление S_w (proxy-clumping)
+# Вычисление Sw (proxy-clumping)
 echo "[$(date)] Шаг 5: Proxy-clumping и вычисление Sw,t"
 
 python3 << 'PYEOF'
@@ -73,7 +70,6 @@ lead.to_csv(f"{OUT}/chr6_lead_eqtl.tsv", sep="\t", index=False)
 
 # Seg_assignments векторно через merge
 # Для каждого окна с Fw>0 находим сегмент NIS с максимальным перекрытием
-
 cols_nis = ["chr_win","win_start","win_end",
             "chr_nis","seg_start","seg_end","hap_id","overlap_bp"]
 ix = pd.read_csv(f"{OUT}/windows_x_nis.bed", sep="\t",
@@ -85,7 +81,6 @@ windows = pd.read_csv(f"{OUT}/chr6_windows_sorted.bed", sep="\t",
 windows["win_id"] = range(len(windows))
 windows["chr"] = windows["chr"].astype(str)
 ix["chr_win"] = ix["chr_win"].astype(str)
-
 ix = ix.merge(
     windows[["chr","win_start","win_end","win_id"]].rename(columns={"chr":"chr_win"}),
     on=["chr_win","win_start","win_end"],
@@ -98,10 +93,10 @@ ix["seg_key"] = ix["hap_id"] + "_" + ix["seg_start"].astype(str) + "_" + ix["seg
 seg_map = {k: i for i, k in enumerate(ix["seg_key"].unique())}
 ix["seg_id"] = ix["seg_key"].map(seg_map)
 
-# Для каждого окна с Fw>0 берём сегмент с максимальным перекрытием
+# Для каждого окна с Fw>0 берем сегмент с максимальным перекрытием
 fw_pos = fw_sw[fw_sw["Fw"] > 0][["win_id"]].copy()
 ix_pos = ix[ix["win_id"].isin(fw_pos["win_id"])].copy()
-# Для каждого win_id — строка с max overlap_bp
+# Для каждого win_id строка с max overlap_bp
 best_seg = (
     ix_pos.loc[ix_pos.groupby("win_id")["overlap_bp"].idxmax()]
     [["win_id","seg_id"]]
@@ -140,9 +135,10 @@ with open(GTF) as fh:
             continue
         if feature != "gene":
             continue
+            
         start = int(start)
         end = int(end)
-        # TSS: для + strand = start, для - strand = end
+        # TSS: для +strand = start, для -strand = end
         tss = start if strand == "+" else end
         # Извлекаем gene_id и gene_name
         gene_id = ""
@@ -166,8 +162,9 @@ tss_bed["tss_start"] = tss_bed["tss"] - 1
 tss_bed["tss_end"] = tss_bed["tss"]
 tss_bed[["chr","tss_start","tss_end","gene_id","gene_name"]].to_csv(
     f"{OUT}/chr6_tss.bed", sep="\t", index=False, header=False)
-print(f"  TSS BED сохранён: {OUT}/chr6_tss.bed")
+print(f"  TSS BED сохранен: {OUT}/chr6_tss.bed")
 PYEOF
+
 echo "[$(date)] Шаг 6 завершен"
 
 # Расстояние до ближайшего TSS (D_TSS)
@@ -177,7 +174,7 @@ sort -k1,1 -k2,2n "$OUT/chr6_tss.bed" > "$OUT/chr6_tss_sorted.bed"
 sort -k1,1 -k2,2n "$OUT/chr6_windows.bed" > "$OUT/chr6_windows_with_id_sorted.bed"
 
 # bedtools closest для каждого окна
-# -a имеет 4 колонки (chr,start,end,win_id), -b имеет 5 (chr,start,end,gene_id,gene_name)
+# -a 4 колонки (chr,start,end,win_id), -b 5 (chr,start,end,gene_id,gene_name)
 bedtools closest \
     -a "$OUT/chr6_windows_with_id_sorted.bed" \
     -b "$OUT/chr6_tss_sorted.bed" \
@@ -192,7 +189,8 @@ import os
 
 WORKDIR = os.path.expanduser("~/nd_pipeline")
 OUT = f"{WORKDIR}/results/pipeline_A"
-# Читаем рез bedtools closest
+
+# Читаем bedtools closest
 cols = ["chr_win","win_start","win_end","win_id",
         "chr_tss","tss_start","tss_end","gene_id","gene_name","D_TSS"]
 dtss = pd.read_csv(f"{OUT}/chr6_windows_dtss.bed", sep="\t",
@@ -210,13 +208,13 @@ def dtss_category(d):
 dtss["dtss_cat"] = dtss["D_TSS"].apply(dtss_category)
 dtss["nearest_gene"] = dtss["gene_name"]
 
-# bedtools closest может вернуть несколько TSS на одинаковом
-# оставляем одну запись на win_id (с минимальным D_TSS)
+# bedtools closest возвращает несколько TSS на одинаковом
+# Оставляем одну запись на win_id с минимальным D_TSS
 print(f"  Строк до дедупликации: {len(dtss)}")
 dtss = dtss.sort_values("D_TSS").drop_duplicates(subset="win_id", keep="first")
 print(f"  Строк после дедупликации: {len(dtss)}")
 
-# Объед с Fw/Sw
+# Объединяем с Fw/Sw
 fw_sw = pd.read_csv(f"{OUT}/chr6_windows_Fw_Sw.tsv", sep="\t")
 result = fw_sw.merge(
     dtss[["win_id","D_TSS","dtss_cat","nearest_gene","gene_id"]],
@@ -227,4 +225,5 @@ print(f"  Итоговая матрица: {OUT}/chr6_windows_full.tsv")
 print(f"  Размер: {result.shape}")
 print(f"  Категории D_TSS:\n{result['dtss_cat'].value_counts()}")
 PYEOF
+
 echo "[$(date)] Шаг 7 завершен"
