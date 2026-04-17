@@ -1,5 +1,4 @@
 #!/bin/bash
-# Pipeline A, препроцессинг для основного анализа
 
 set -euo pipefail
 WORKDIR="$HOME/nd_pipeline"
