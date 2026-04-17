@@ -1,7 +1,7 @@
 #!/bin/bash
 # Pipeline A, препроцессинг для основного анализа
 # Пререквизиты: bedtools, python3 (pandas, numpy), tabix
-# sbatch run_01.sh
+# Запуск через run
 
 set -euo pipefail
 WORKDIR="$HOME/nd_pipeline"
