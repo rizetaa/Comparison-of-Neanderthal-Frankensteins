@@ -1,13 +1,11 @@
 #!/bin/bash
-
 # Скачивание всех необходимых данных 
-# Запуск: bash 00_download_data.sh
+# Запуск bash 00_download_data.sh
 
 cd ~/nd_pipeline/data/
-
-# tsv-файлы IBS.YRI
+# NIS-сегменты IBS.YRI...
 # Выполнить локально
-# Вручную копируем все IBS.YRI.grch37.chrN.em.tsv с помощью scp -P 'порт подключения' IBS.YRI.grch37.chrN.em.tsv 'логин':~/nd_pipeline/data/raw
+# Вручную копируем все IBS.YRI.grch37.chrN.em.tsv с помощью scp -P 'порт' IBS.YRI.grch37.chrN.em.tsv 'логин':~/nd_pipeline/data/raw
 
 # Карта рекомбинации HapMap II (GRCh37/hg19)
 cd ~/nd_pipeline/data/hapmap
@@ -26,5 +24,6 @@ wget -c https://cdna.eva.mpg.de/neandertal/Vindija/VCF/Vindija33.19/chr6_mq25_ma
 # GENCODE v19 (hg19) 
 cd ~/nd_pipeline/data/gencode
 wget https://ftp.ebi.ac.uk/pub/databases/gencode/Gencode_human/release_19/gencode.v19.annotation.gtf.gz
+
 # Затем распакуем
 gunzip -k gencode.v19.annotation.gtf.gz
