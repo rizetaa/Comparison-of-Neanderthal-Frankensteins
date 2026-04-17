@@ -1,7 +1,5 @@
 #!/bin/bash
 # Pipeline A, препроцессинг для основного анализа
-# Надо установить bedtools, python3 (pandas, numpy), tabix
-# Запуск через SLURM - sbatch run_01.sh
 
 set -euo pipefail
 WORKDIR="$HOME/nd_pipeline"
@@ -21,11 +19,10 @@ HAPMAP="$DATA/hapmap/hapmap_chr6.txt"
 GENCODE_GTF="$DATA/gencode/gencode.v19.annotation.gtf"
 GTEX_DIR="$DATA/gtex/GTEx_Analysis_v7_eQTL"
 OUT="$RES/pipeline_A"
-
 CHR6_LEN=171115067
 
 # eQTL
-# Обработка GTEx eQTL — фильтрация и пересечение с окнами
+# Обработка GTEx eQTL, фильтрация и пересечение с окнами
 echo "[$(date)] Шаг 3: Обработка GTEx eQTL"
 
 python3 << 'PYEOF'
@@ -37,7 +34,8 @@ import glob
 WORKDIR = os.path.expanduser("~/nd_pipeline")
 GTEX_DIR = f"{WORKDIR}/data/gtex/GTEx_Analysis_v7_eQTL"
 OUT = f"{WORKDIR}/results/pipeline_A"
-# Читаем значимые пары GTEx v7
+
+# Читаем значимые пары GTEx
 eqtl_files = glob.glob(f"{GTEX_DIR}/*.signif_variant_gene_pairs.txt.gz")
 if not eqtl_files:
     eqtl_files = glob.glob(f"{GTEX_DIR}/*.signif_variant_gene_pairs.txt")
@@ -61,9 +59,8 @@ if not all_eqtl:
 
 eqtl = pd.concat(all_eqtl, ignore_index=True)
 print(f"  Всего eQTL записей: {len(eqtl)}")
-# Диагностика: смотрим реальный формат variant_id и уникальные хромосомы
+# Смотрим формат variant_id и уникальные хромосомы
 print(f"  Примеры variant_id:\n{eqtl['variant_id'].head(5).to_string()}")
-# Показываем уникальные первые части из variant_id
 chrom_samples = eqtl["variant_id"].str.split("_").str[0].value_counts().head(10)
 print(f"  Уникальные хромосомы в variant_id (10):\n{chrom_samples.to_string()}")
 
@@ -77,9 +74,9 @@ eqtl = pd.concat([eqtl, split_df], axis=1)
 # Фильтр chr6 или 6
 eqtl = eqtl[eqtl["vchr"].isin(["chr6", "6"])].copy()
 print(f"  eQTL на chr6: {len(eqtl)}")
-print(f"  Уникальные значения vchr (10): {eqtl['vchr'].unique()[:10] if len(eqtl) > 0 else 'нет данных'}")
+print(f"  Уникальные значения vchr: {eqtl['vchr'].unique()[:10] if len(eqtl) > 0 else 'нет данных'}")
 
-# Если 0 — фильтр по строке
+# Если 0, то фильтр по строке
 if len(eqtl) == 0:
     eqtl_all = pd.concat(all_eqtl, ignore_index=True)
     # Фильтруем по variant_id
@@ -93,25 +90,23 @@ if len(eqtl) == 0:
         eqtl = pd.concat([eqtl.drop(columns=["vchr","vpos","vref","valt","vbuild"],
                                      errors="ignore"), split_df2], axis=1)
 
-# Фильтр биаллельные SNP (ref и alt — одна буква)
+# Фильтр биаллельные SNP (ref и alt - одна буква)
 eqtl = eqtl[
     (eqtl["vref"].str.len() == 1) &
     (eqtl["valt"].str.len() == 1)
 ].copy()
 print(f"  После фильтра биаллельных: {len(eqtl)}")
-
 eqtl["vpos"] = eqtl["vpos"].astype(int)
 
 # Z-score
 eqtl["Z"] = eqtl["slope"] / eqtl["slope_se"]
 eqtl["absZ"] = eqtl["Z"].abs()
 
-# Сохраняем полный список eQTL chr6
 eqtl.to_csv(f"{OUT}/chr6_eqtl_all.tsv", sep="\t", index=False)
 print(f"  Сохранен полный список: {OUT}/chr6_eqtl_all.tsv")
 
 if len(eqtl) == 0:
-    print("  warning: eQTL chr6 не найдены — создаём пустой BED.")
+    print("  Предупреждение: eQTL chr6 не найдены, создаем пустой BED.")
     # Пустой файл чтобы bedtools не упал
     open(f"{OUT}/chr6_eqtl.bed", "w").close()
 else:
@@ -119,14 +114,15 @@ else:
     eqtl_bed = eqtl[["vchr","vpos","gene_id","tissue","slope","slope_se","Z","absZ","variant_id"]].copy()
     eqtl_bed["vstart"] = eqtl_bed["vpos"] - 1
     eqtl_bed["vend"]   = eqtl_bed["vpos"]
-    eqtl_bed["vchr_num"] = "6"  # без "chr" для совместимости с NIS
+    eqtl_bed["vchr_num"] = "6"  # без chr для совместимости с NIS
     eqtl_bed = eqtl_bed[["vchr_num","vstart","vend","variant_id","gene_id","tissue","slope","slope_se","Z","absZ"]]
     eqtl_bed.to_csv(f"{OUT}/chr6_eqtl.bed", sep="\t", index=False, header=False)
     print(f"  BED файл eQTL: {OUT}/chr6_eqtl.bed ({len(eqtl_bed)} записей)")
 PYEOF
+
 echo "[$(date)] Шаг 3 завершен"
 
-# bedtools intersect — eQTL SNP x окна
+# bedtools intersect: eQTL SNP x окна
 echo "[$(date)] Шаг 4: Пересечение eQTL с окнами (bedtools intersect)"
 sort -k1,1 -k2,2n "$OUT/chr6_windows.bed" > "$OUT/chr6_windows_sorted2.bed"
 sort -k1,1 -k2,2n "$OUT/chr6_eqtl.bed"   > "$OUT/chr6_eqtl_sorted.bed"
