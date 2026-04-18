@@ -10,7 +10,6 @@ WORKDIR="$HOME/nd_pipeline"
 SCRIPTS="$WORKDIR/scripts"
 PIPE_A="$WORKDIR/results/pipeline_A/$SW_FORMULA"
 OUTBASE="$WORKDIR/results/analysis/chr${CHR}/$SW_FORMULA"
-
 QC_OUT="$OUTBASE/qc"
 REG_OUT="$OUTBASE/regression"
 STRAT_OUT="$OUTBASE/stratified_control"
