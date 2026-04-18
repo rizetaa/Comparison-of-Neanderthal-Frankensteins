@@ -6,7 +6,7 @@
 ```
 ~/nd_pipeline/                        # Рабочая директория пайплайна
 ├── data/
-│   ├── raw/                          # IBS.YRI...
+│   ├── raw/                          # NIS-сегменты
 │   ├── hapmap/                       # Карты рекомбинации HapMap II
 │   ├── gtex/                         # GTEx v7 cis-eQTL
 │   ├── vindija/                      # Vindija 33.19 VCF
@@ -63,8 +63,8 @@ CHR=6 bash run_chromosome_without_callable.sh 2>&1 | tee results/chr6/logs/chr6_
 Подготовка данных для основного анализа 
 1. Нарезаем chr6 на окна 1000 bp
 2. Вычисляем глобальную частоту интрогрессии Fw для каждого окна
-   - Индикатор I=1 если гаплотип покрывает окно >= 50% (>= 500 bp)
-   - Fw=(число гаплотипов с I=1) / H
+    Индикатор I=1 если гаплотип покрывает окно >= 50% (>= 500 bp)
+    Fw = (число гаплотипов с I=1) / H
 3. Присваиваем бины частот: Zero / Rare / Low / Intermediate / High / Very_High
 4. Фильтруем GTEx v7 eQTL: только chr6, FDR < 0.05, биаллельные SNP
 5. Пересекаем eQTL с окнами
@@ -92,7 +92,6 @@ CHR=6 bash run_chromosome_without_callable.sh 2>&1 | tee results/chr6/logs/chr6_
     NA если аллель неизвестен
 6. Включаем только валидные окна, которые достаточно хорошо покрытые callable-областями. Для этого нужно найти долю callable-позиций в окне:
 vw = (callable bp in w) / 1000
-
 Итоговый файл: results/pipeline_B/chr6_windows_final.tsv
 ```
 
@@ -113,7 +112,7 @@ Sw ~ Fw + log(1 + D_TSS) + log(1 + Rw) + log(1 + Nw) + C(chrom)
  Блок = целый NIS-сегмент (для интрогрессии) или геномный участок медианной длины (для контроля)
 2.4 Адаптивная интрогрессия
  Кандидаты: Fw > 95 перцентиль, Sw > 95 перцентиль
- Scatter plot Fw * Sw с генами-мишенями
+ Scatter plot Fw и Sw с генами-мишенями
 ```
 
 ## 5. Визуализация
