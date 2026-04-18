@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
+from scipy.stats import mannwhitneyu
 
 import argparse
 import sys
-from concurrent.futures import ProcessPoolExecutor
-from pathlib import Path
-
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
-from scipy.stats import mannwhitneyu
 
 CAT_ORDER = ["Promoter", "Near", "Distal"]
 
