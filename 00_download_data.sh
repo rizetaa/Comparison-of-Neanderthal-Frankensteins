@@ -1,6 +1,6 @@
 #!/bin/bash
 # Скачивание всех необходимых данных 
-# Запуск bash 00_download_data.sh
+# bash 00_download_data.sh
 
 cd ~/nd_pipeline/data/
 # NIS-сегменты IBS.YRI...
