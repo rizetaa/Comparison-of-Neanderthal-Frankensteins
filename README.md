@@ -51,7 +51,7 @@ chmod +x scripts/*_universal_v2.py
 chmod +x run_chromosome_v2.sh
 chmod +x run_all_chromosomes_v2.sh
 ```
-## тестовый запуск
+## Тестовый запуск
 ```bash
 cd ~/nd_pipeline
 CHR=6 bash run_chromosome_v2.sh 2>&1 | tee results/chr6/logs/chr6_test.log
@@ -172,7 +172,11 @@ cd ~/nd_pipeline
 bash run_all_chromosomes_v2.sh 2>&1 | tee results/logs/all_chromosomes.log
 ```
 
-
 ## Теперь можно скачать картинки локально
 
-## TODO
+## 6. Запуск с callability для всех хромосом
+
+```bash
+nohup ./scripts/preprocess_pipeline_A_genome.sh 8 max_absx > 1.log 2>&1 &
+nohup ./scripts/main.analysis.genome.sh violin max_absz >2.log 2>&1 &
+```
