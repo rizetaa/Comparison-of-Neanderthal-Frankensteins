@@ -1,16 +1,15 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+from pathlib import Path
+from scipy.stats import spearmanr
 
 import argparse
 import sys
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 import matplotlib.pyplot as plt
 import statsmodels.formula.api as smf
-from scipy.stats import spearmanr
 
 FREQ_ORDER = ["Rare", "Low", "Intermediate", "High", "Very_High"]
 
