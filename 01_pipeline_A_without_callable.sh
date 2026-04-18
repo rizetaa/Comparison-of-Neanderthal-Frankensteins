@@ -1,7 +1,7 @@
 #!/bin/bash
 # Pipeline A, препроцессинг для глобального анализа
 # Пререквизиты: bedtools, python (pandas, numpy), tabix
-# bash 01_pipeline_A_preprocess_universal_v2.sh
+# bash 01_pipeline_A_without_callable.sh
 
 set -euo pipefail
 
