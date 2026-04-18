@@ -1,6 +1,6 @@
 #!/bin/bash
 # Скрипт для параллельного запуска пайплайна для всех хромосом
-# запуск bash run_all_chromosomes_v2.sh
+# bash run_all_chromosomes_without_callable.sh
 # GNU parallel
 
 set -euo pipefail
@@ -21,19 +21,15 @@ N_PARALLEL=${#CHROMOSOMES[@]}
 
 echo "Хромосомы для обработки: ${CHROMOSOMES[@]}"
 echo "Число параллельных задач: $N_PARALLEL"
-echo "=========================================="
 
-# Проверяем наличие GNU parallel
+# Наличие GNU parallel
 if ! command -v parallel &> /dev/null; then
     echo "ОШИБКА: GNU parallel не установлен!"
     echo "Установите: sudo apt-get install parallel"
     exit 1
 fi
 
-# Шаг 0: Предобработка GTEx (один раз)
-echo ""
 echo "Шаг 0: Предобработка GTEx eQTL по хромосомам"
-
 GTEX_BY_CHR="$WORKDIR/data/gtex/by_chr"
 if [ -f "$GTEX_BY_CHR/chr1_eqtl_raw.tsv" ] && [ -f "$GTEX_BY_CHR/chr22_eqtl_raw.tsv" ]; then
     echo "  Файлы уже существуют, пропускаем."
@@ -42,18 +38,14 @@ else
     bash "$WORKDIR/scripts/00_prefilter_gtex_v2.sh"
 fi
 
-echo ""
 echo "Запуск параллельной обработки хромосом"
-# Формируем команды для каждой хромосомы
+# Команды для каждой хромосомы
 COMMANDS=()
 for chr in "${CHROMOSOMES[@]}"; do
     COMMANDS+=("CHR=${chr} bash ${WORKDIR}/run_chromosome_v2.sh")
 done
 
-# Запускаем параллельно
-echo ""
-echo "Запуск параллельной обработки..."
-
+echo "Запуск параллельной обработки"
 parallel \
     --jobs $N_PARALLEL \
     --keep-order \
@@ -61,18 +53,14 @@ parallel \
     --resume \
     ::: "${COMMANDS[@]}"
 
-# Проверка результатов
-echo ""
 echo "Проверка результатов"
-
-# Считаем успешно завершённые хромосомы
+# Успешно завершенные хромосомы
 completed=0
 failed=0
 
 for chr in "${CHROMOSOMES[@]}"; do
     chr_results="$WORKDIR/results/chr${chr}"
-    
-    # Проверяем наличие основных файлов результатов
+    # Наличие основных файлов результатов
     if [ -f "$chr_results/pipeline_A/chr${chr}_windows_full.tsv" ] && \
        [ -f "$chr_results/pipeline_B/chr${chr}_windows_final.tsv" ] && \
        [ -f "$chr_results/analysis/bootstrap_results.json" ]; then
