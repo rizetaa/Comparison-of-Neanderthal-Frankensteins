@@ -12,10 +12,11 @@
 │   ├── vindija/                      # Vindija 33.19 VCF
 │   └── gencode/                      # GENCODE v19 GTF
 ├── scripts/                          # Скрипты пайплайна
-│   ├── 01_pipeline_A_preprocess_universal_v2.sh
-│   ├── 02_pipeline_B_subpop_vindija_universal_v2.sh
-│   ├── 03_main_analysis_universal_v2.py
-│   └── 04_visualize_universal_v2.py
+│   ├── 01_pipeline_A_without_callable.sh
+│   ├── 02_pipeline_B_without_callable.sh
+│   ├── 03_main_analysis_without_callable.py
+│   ├── 04_visualize_without_callable.py
+|   └── ...
 ├── results/
 │   ├── chr1/
 │   │   ├── pipeline_A/
@@ -25,7 +26,7 @@
 │   │   └── logs/
 │   ├── chr2/
 │   └── ...
-└── logs/                             # Общие логи
+└── logs/
 ```
 ## 0. Подготовка
 
@@ -46,10 +47,7 @@ cd ~/nd_pipeline
 
 ```bash
 cd ~/nd_pipeline
-chmod +x scripts/*_universal_v2.sh
-chmod +x scripts/*_universal_v2.py
-chmod +x run_chromosome_v2.sh
-chmod +x run_all_chromosomes_v2.sh
+chmod +x "имя файла"
 ```
 ## Тестовый запуск
 ```bash
