@@ -155,7 +155,7 @@ fig5_scatter_adaptive.png/pdf - Scatter Fw и Sw
 fig6_summary_panel.png/pdf - все результаты
 ```
 
-## GNU parallel
+## Запуск для всех
 
 ```bash
 which parallel
