@@ -52,19 +52,10 @@ chmod +x "имя файла"
 ## Тестовый запуск
 ```bash
 cd ~/nd_pipeline
-CHR=6 bash run_chromosome_v2.sh 2>&1 | tee results/chr6/logs/chr6_test.log
+CHR=6 bash run_chromosome_without_callable.sh 2>&1 | tee results/chr6/logs/chr6_test.log
 ```
 
 ## 2. Pipeline A (препроцессинг)
-
-```bash
-cd ~/nd_pipeline
-sbatch run_01_pipeline_A.sh
-tail -f logs/slurm_pipelineA_<job_id>.log
-# Или
-bash run_01_pipeline_A.sh 2>&1 | tee pipeline_A.log
-```
-
 ```
 Подготовка данных для основного анализа 
 1. Нарезаем chr6 на окна 1000 bp
@@ -83,15 +74,6 @@ bash run_01_pipeline_A.sh 2>&1 | tee pipeline_A.log
 ```
 
 ## 3. Pipeline B (субпопуляции и поляризация Vindija)
-
-```bash
-cd ~/nd_pipeline
-sbatch run_02_pipeline_B.sh
-tail -f logs/slurm_pipelineB_<job_id>.log
-# Или
-bash run_02_pipeline_B.sh 2>&1 | tee pipeline_B.log
-```
-
 ```
 Подготовка данных для cпецанализа
 1. Группируем гаплотипы по субпопуляциям
@@ -109,15 +91,6 @@ bash run_02_pipeline_B.sh 2>&1 | tee pipeline_B.log
 ```
 
 ## 4. Основной анализ
-
-```bash
-cd ~/nd_pipeline
-sbatch run_03_analysis.sh
-tail -f logs/slurm_analysis_<job_id>.log
-# Или
-bash run_03_analysis.sh
-```
-
 ```
 2.1 Спектр частот (iSFS)
 - Гистограмма распределения окон по бинам частот
@@ -138,12 +111,6 @@ Sw ~ Fw + log(1 + D_TSS) + log(recomb)
 ```
 
 ## 5. Визуализация
-```bash
-cd ~/nd_pipeline
-sbatch run_04_visualize.sh
-# или
-bash run_04_visualize.sh
-```
 ```
 fig1_iSFS.png/pdf - спектр частот интрогрессии (barplot, log-шкала)
 fig2_manhattan.png/pdf - Manhattan plot Fw (chr6)
@@ -156,23 +123,20 @@ fig6_summary_panel.png/pdf - все результаты
 ## Запуск для всех
 
 ```bash
-which parallel
-```
-Если не установлен:
-```bash
 sudo apt-get install parallel
+which parallel
 ```
 
 ### Запустить параллельную обработку
 
 ```bash
 cd ~/nd_pipeline
-bash run_all_chromosomes_v2.sh 2>&1 | tee results/logs/all_chromosomes.log
+bash run_all_chromosomes_without_callable.sh 2>&1 | tee results/logs/all_chromosomes.log
 ```
 
-### Теперь можно скачать картинки локально
+### Теперь можно скачать картинки себе локально
 
-## 6. Запуск с callability для всех хромосом
+## 6. Запуск и графики с callability для всех хромосом
 
 ```bash
 nohup ./scripts/preprocess_pipeline_A_genome.sh 8 max_absx > 1.log 2>&1 &
