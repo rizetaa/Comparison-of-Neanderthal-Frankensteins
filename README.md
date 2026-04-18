@@ -25,6 +25,9 @@
 │   │   ├── figures/
 │   │   └── logs/
 │   ├── chr2/
+|   ├── ...
+|   ├── analysis/genome/max_absz       # C callability
+|   ├── pipeline_A/max_absz            # C callability
 │   └── ...
 └── logs/
 ```
