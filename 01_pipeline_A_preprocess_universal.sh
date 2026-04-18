@@ -1,5 +1,5 @@
 #!/bin/bash
-# Скрипт 01: Pipeline A, препроцессинг для глобального анализа
+# Pipeline A, препроцессинг для глобального анализа
 # Пререквизиты: bedtools, python (pandas, numpy), tabix
 # bash 01_pipeline_A_preprocess_universal_v2.sh
 
