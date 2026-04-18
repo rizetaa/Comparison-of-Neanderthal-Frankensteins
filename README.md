@@ -142,7 +142,7 @@ nohup ./scripts/preprocess_pipeline_A_genome.sh 8 max_absx > 1.log 2>&1 &
 nohup ./scripts/main.analysis.genome.sh violin max_absz >2.log 2>&1 &
 ```
 
-## Запуск для всех
+### Запуск для всех
 
 ```bash
 sudo apt-get install parallel
