@@ -1,11 +1,11 @@
 #!/bin/bash
-# Скрипт 02: Pipeline B — Субпопуляционные частоты + поляризация на Vindija (универсальный)
-# python3 (pandas, numpy), bcftools, tabix
-# CHR=6 bash 02_pipeline_B_subpop_vindija_universal_v2.sh
+# Pipeline B, субпопуляционные частоты + поляризация на Vindija
+# Пререквизиты: Pipeline A, python (pandas, numpy), bcftools, tabix
+# CHR=6 bash 02_pipeline_B_without_callable.sh
 
 set -euo pipefail
 
-# Переменные окружения
+# Переменные
 CHR=${CHR:-6}
 WORKDIR="$HOME/nd_pipeline"
 DATA="$WORKDIR/data"
@@ -14,21 +14,20 @@ CHR_RES="$RES/chr${CHR}"
 NIS_DIR="$WORKDIR/data/raw"
 LOG="$CHR_RES/logs/pipeline_B_chr${CHR}.log"
 
-# Создаём директории
+# Директории
 mkdir -p "$CHR_RES/pipeline_B"
 mkdir -p "$CHR_RES/logs"
 exec > >(tee -a "$LOG") 2>&1
 
 echo "[$(date)] Pipeline B: Старт (chr${CHR})"
-
 NIS="${NIS_DIR}/IBS.YRI.grch37.chr${CHR}.em.tsv"
 VINDIJA_VCF="$DATA/vindija/chr${CHR}_mq25_mapab100.vcf.gz"
 OUT_A="$CHR_RES/pipeline_A"
 OUT_B="$CHR_RES/pipeline_B"
 
-echo "[$(date)] Шаг 1: Вычисление субпопуляционных частот..."
+echo "[$(date)] Шаг 1: Вычисление субпопуляционных частот"
 
-# 1a: Разбиваем NIS по субпопуляциям и создаём BED-файлы 
+# 1a: Разбиваем NIS по субпопуляциям и создаем BED-файлы 
 python3 << 'PYEOF'
 import pandas as pd
 import numpy as np
@@ -44,7 +43,6 @@ OUT_B = f"{WORKDIR}/results/chr{CHR}/pipeline_B"
 # Читаем NIS
 nis = pd.read_csv(f"{NIS_DIR}/IBS.YRI.grch37.chr{CHR}.em.tsv", sep=r"\s+")
 nis["sample_id"] = nis["Sample"].str.rsplit("_", n=1).str[0]
-
 # Диагностика
 unique_samples = nis["sample_id"].unique()
 print(f"  Уникальных образцов: {len(unique_samples)}")
@@ -61,9 +59,8 @@ def get_pop(sample_id):
 nis["pop"] = nis["sample_id"].apply(get_pop)
 unknown_ids = nis[nis["pop"] == "Unknown"]["sample_id"].unique()
 if len(unknown_ids) > 0:
-    print(f"  ПРЕДУПРЕЖДЕНИЕ: Unknown sample_ids: {unknown_ids[:10]}")
+    print(f"  Предупреждение: Unknown sample_ids: {unknown_ids[:10]}")
 print(f"  Субпопуляции:\n{nis.groupby('pop')['Sample'].nunique()}")
-
 populations = [p for p in nis["pop"].unique() if p != "Unknown"]
 print(f"  Популяции для анализа: {populations}")
 
@@ -86,7 +83,6 @@ for pop in populations:
 # Сохраняем Hk
 with open(f"{OUT_B}/Hk.json", "w") as f:
     json.dump(hk_dict, f)
-
 print(f"  BED-файлы субпопуляций сохранены в {OUT_B}/")
 PYEOF
 
@@ -106,7 +102,7 @@ for POP_BED in "$OUT_B"/nis_*.bed; do
     echo "    Пересечений: $(wc -l < "$OUT_B/windows_x_nis_${POP}.bed")"
 done
 
-# 1c: Вычисляем Fk векторно
+# 1c: Fk векторно
 python3 << 'PYEOF'
 import pandas as pd
 import numpy as np
@@ -124,16 +120,13 @@ with open(f"{OUT_B}/Hk.json") as f:
     hk_dict = json.load(f)
 
 populations = list(hk_dict.keys())
-
 # Читаем окна с win_id
 windows = pd.read_csv(f"{OUT_A}/chr{CHR}_windows_full.tsv", sep="\t")
-
 subpop_results = []
 
 for pop in populations:
     Hk = hk_dict[pop]
     ix_file = f"{OUT_B}/windows_x_nis_{pop}.bed"
-
     # Колонки: chr_win,win_start,win_end,win_id, chr_nis,seg_start,seg_end,hap_id, overlap_bp
     cols = ["chr_win","win_start","win_end","win_id",
             "chr_nis","seg_start","seg_end","hap_id","overlap_bp"]
@@ -141,7 +134,6 @@ for pop in populations:
 
     # Фильтр: перекрытие >= 500 bp
     ix_filt = ix[ix["overlap_bp"] >= MIN_OVERLAP].copy()
-
     # Уникальные гаплотипы на окно
     n_introg = (
         ix_filt.groupby("win_id")["hap_id"]
@@ -149,20 +141,17 @@ for pop in populations:
         .reset_index()
         .rename(columns={"hap_id": "n_hap_introgressed_k"})
     )
-
     # Объединяем с полным списком окон
     pop_df = windows[["win_id"]].merge(n_introg, on="win_id", how="left")
     pop_df["n_hap_introgressed_k"] = pop_df["n_hap_introgressed_k"].fillna(0).astype(int)
     pop_df["Fk"] = pop_df["n_hap_introgressed_k"] / Hk
     pop_df["pop"] = pop
     pop_df["Hk"] = Hk
-
     subpop_results.append(pop_df)
     print(f"  {pop}: окон с интрогрессией = {(pop_df['Fk']>0).sum()}")
 
 subpop_df = pd.concat(subpop_results, ignore_index=True)
-
-# Pivot: строки = win_id, колонки = Fk_IBS, Fk_YRI, ...
+# Строки = win_id, колонки = Fk_IBS, Fk_YRI, ...
 pivot = subpop_df.pivot_table(index="win_id", columns="pop", values="Fk").reset_index()
 pivot.columns = ["win_id"] + [f"Fk_{p}" for p in pivot.columns[1:]]
 
@@ -171,16 +160,14 @@ windows_full = windows.merge(pivot, on="win_id", how="left")
 windows_full.to_csv(f"{OUT_B}/chr{CHR}_windows_subpop.tsv", sep="\t", index=False)
 print(f"  Сохранено: {OUT_B}/chr{CHR}_windows_subpop.tsv")
 print(f"  Колонки: {list(windows_full.columns)}")
-
-# Сохраняем детальную таблицу субпопуляций
+# Сохраняем таблицу субпопуляций
 subpop_df.to_csv(f"{OUT_B}/chr{CHR}_subpop_frequencies.tsv", sep="\t", index=False)
 PYEOF
 
-echo "[$(date)] Шаг 1 завершён."
+echo "[$(date)] Шаг 1 завершен"
 
-echo "[$(date)] Шаг 2: Поляризация eQTL на Vindija 33.19..."
-
-# Проверяем наличие VCF
+echo "[$(date)] Шаг 2: Поляризация eQTL на Vindija 33.19"
+# Наличие VCF
 if [ ! -f "$VINDIJA_VCF" ]; then
     echo "  ОШИБКА: Vindija VCF не найден: $VINDIJA_VCF"
     echo "  Проверьте скачивание в 00_download_data.sh"
@@ -192,7 +179,7 @@ if [ ! -f "${VINDIJA_VCF}.tbi" ]; then
     tabix -p vcf "$VINDIJA_VCF"
 fi
 
-# Извлекаем позиции eQTL chr${CHR} для запроса к VCF
+# Извлекаем из eQTL chr${CHR} для запроса к VCF
 python3 << 'PYEOF'
 import pandas as pd
 import os
@@ -203,8 +190,7 @@ OUT_A = f"{WORKDIR}/results/chr{CHR}/pipeline_A"
 OUT_B = f"{WORKDIR}/results/chr{CHR}/pipeline_B"
 
 eqtl = pd.read_csv(f"{OUT_A}/chr{CHR}_eqtl_all.tsv", sep="\t")
-
-# Создаём BED-файл позиций для bcftools query -T
+# BED-файл позиций для bcftools query -T
 positions = eqtl["vpos"].drop_duplicates().astype(int).sort_values().values
 pos_bed = pd.DataFrame({
     "chr":   str(CHR),
@@ -217,7 +203,7 @@ print(f"  Пример BED строк:")
 print(pos_bed.head(3).to_string(index=False, header=False))
 PYEOF
 
-# Извлекаем генотипы Vindija для позиций eQTL
+# Извлекаем генотипы Vindija для eQTL
 bcftools query \
     -T "$OUT_B/eqtl_positions.bed" \
     -f '%CHROM\t%POS\t%REF\t%ALT\t[%GT]\t[%GQ]\t[%DP]\n' \
@@ -226,7 +212,7 @@ bcftools query \
 
 echo "  Vindija сайтов извлечено: $(wc -l < "$OUT_B/vindija_eqtl_sites.txt")"
 
-echo "[$(date)] Шаг 3: Hard Filtering и поляризация..."
+echo "[$(date)] Шаг 3: Hard Filtering и поляризация"
 
 python3 << 'PYEOF'
 import pandas as pd
@@ -238,14 +224,13 @@ WORKDIR = os.path.expanduser("~/nd_pipeline")
 OUT_A = f"{WORKDIR}/results/chr{CHR}/pipeline_A"
 OUT_B = f"{WORKDIR}/results/chr{CHR}/pipeline_B"
 
-# Читаем Vindija сайты
+# Vindija сайты
 vindija_file = f"{OUT_B}/vindija_eqtl_sites.txt"
 if os.path.getsize(vindija_file) == 0:
     print("  ПРЕДУПРЕЖДЕНИЕ: Vindija файл пуст. Поляризация невозможна.")
     pd.DataFrame(columns=["variant_id","D_wt","vindija_allele","polarized"]).to_csv(
         f"{OUT_B}/chr{CHR}_polarized_eqtl.tsv", sep="\t", index=False)
     exit(0)
-
 vindija = pd.read_csv(vindija_file, sep="\t", header=None,
                       names=["chrom","pos","ref","alt","gt","gq","dp"])
 print(f"  Vindija сайтов до фильтрации: {len(vindija)}")
@@ -255,7 +240,6 @@ TRANSITIONS = {("C","T"), ("T","C"), ("G","A"), ("A","G")}
 
 vindija["gq"] = pd.to_numeric(vindija["gq"], errors="coerce")
 vindija["dp"] = pd.to_numeric(vindija["dp"], errors="coerce")
-
 vindija_filt = vindija[
     (vindija["gq"] > 30) &
     (vindija["dp"] > 10) &
@@ -276,7 +260,7 @@ def parse_gt(gt_str):
 vindija_filt["alleles"] = vindija_filt["gt"].apply(parse_gt)
 vindija_filt = vindija_filt[vindija_filt["alleles"].notna()].copy()
 
-# Определяем неандертальский аллель
+# Неандертальский аллель
 def get_neandertal_allele(row):
     alleles = row["alleles"]
     if alleles is None:
@@ -289,14 +273,11 @@ vindija_filt["neandertal_allele"] = vindija_filt.apply(get_neandertal_allele, ax
 vindija_filt = vindija_filt[vindija_filt["neandertal_allele"].notna()].copy()
 print(f"  Сайтов с неандертальским аллелем: {len(vindija_filt)}")
 
-# Создаём ключ для объединения с eQTL
+# Создаем ключ для объединения с eQTL
 vindija_filt["variant_key"] = f"{CHR}_" + vindija_filt["pos"].astype(str) + "_" + \
                                vindija_filt["ref"] + "_" + vindija_filt["alt"] + "_b37"
-
-# Читаем lead eQTL
 lead_eqtl = pd.read_csv(f"{OUT_A}/chr{CHR}_lead_eqtl.tsv", sep="\t")
-
-# Создаём ключ для eQTL
+# Ключ для eQTL
 lead_eqtl["variant_key"] = lead_eqtl["variant_id"].str.replace(r"^chr" + CHR + "_", f"{CHR}_", regex=True)
 
 # Переименовываем ref/alt Vindija
@@ -305,7 +286,6 @@ vindija_for_merge = vindija_for_merge.rename(columns={
     "ref": "vindija_ref",
     "alt": "vindija_alt"
 })
-
 # Объединяем
 polarized = lead_eqtl.merge(
     vindija_for_merge,
@@ -324,7 +304,6 @@ def compute_D(row):
 
 polarized["D_wt"] = polarized.apply(compute_D, axis=1)
 polarized["polarized"] = True
-
 # Агрегируем D по окну
 D_by_window = polarized.groupby("win_id").agg(
     D_wt_mean=("D_wt", "mean"),
@@ -337,7 +316,7 @@ polarized.to_csv(f"{OUT_B}/chr{CHR}_polarized_eqtl.tsv", sep="\t", index=False)
 print(f"  Сохранено: {OUT_B}/chr{CHR}_polarized_eqtl.tsv")
 print(f"  Сохранено: {OUT_B}/chr{CHR}_D_by_window.tsv")
 
-# Итоговая матрица Pipeline B
+# Итоговая матрица
 windows_subpop = pd.read_csv(f"{OUT_B}/chr{CHR}_windows_subpop.tsv", sep="\t")
 final = windows_subpop.merge(D_by_window, on="win_id", how="left")
 final.to_csv(f"{OUT_B}/chr{CHR}_windows_final.tsv", sep="\t", index=False)
@@ -345,8 +324,8 @@ print(f"  Итоговая матрица Pipeline B: {OUT_B}/chr{CHR}_windows_f
 print(f"  Размер: {final.shape}")
 PYEOF
 
-echo "[$(date)] Шаг 3 завершён."
-echo "[$(date)] Pipeline B завершён"
+echo "[$(date)] Шаг 3 завершен"
+echo "[$(date)] Pipeline B завершен"
 echo "  Итоговые файлы:"
 echo "    $OUT_B/chr${CHR}_windows_subpop.tsv   — матрица с субпопуляционными частотами"
 echo "    $OUT_B/chr${CHR}_polarized_eqtl.tsv   — поляризованные eQTL"
