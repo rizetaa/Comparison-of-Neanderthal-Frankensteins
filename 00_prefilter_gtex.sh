@@ -1,7 +1,8 @@
 #!/bin/bash
-# Скрипт 00: фильтрация GTEx eQTL по хромосомам
+# Фильтрация GTEx eQTL по хромосомам
 # Запускаем один раз перед параллельной обработкой хромосом
-# Результат: data/gtex/by_chr/chrN_eqtl_raw.tsv
+# bash 00_prefilter_gtex.sh
+# data/gtex/by_chr/chrN_eqtl_raw.tsv
 
 set -euo pipefail
 
