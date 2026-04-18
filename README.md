@@ -49,7 +49,7 @@ cd ~/nd_pipeline
 cd ~/nd_pipeline
 chmod +x "имя файла"
 ```
-## Тестовый запуск
+## Тестовый запуск для одной хромосомы
 ```bash
 cd ~/nd_pipeline
 CHR=6 bash run_chromosome_without_callable.sh 2>&1 | tee results/chr6/logs/chr6_test.log
@@ -87,6 +87,9 @@ CHR=6 bash run_chromosome_without_callable.sh 2>&1 | tee results/chr6/logs/chr6_
    - +1 если неандертальский аллель повышает экспрессию
    - −1 если понижает
    - NA если аллель неизвестен
+6. Включаем только валидные окна, которые достаточно хорошо покрытые callable-областями. Для этого нужно найти долю callable-позиций в окне:
+vw = (callable bp in w) / 1000
+
 Итоговый файл: results/pipeline_B/chr6_windows_final.tsv
 ```
 
@@ -94,12 +97,12 @@ CHR=6 bash run_chromosome_without_callable.sh 2>&1 | tee results/chr6/logs/chr6_
 ```
 2.1 Спектр частот (iSFS)
 - Гистограмма распределения окон по бинам частот
-- Manhattan plot: позиция*Fw
+- Manhattan plot: позиция х Fw
 2.2 Двухэтапная модель (очищающий отбор)
 Логистическая регрессия
-logit(P(Sw > 0)) ~ Fw + log(1 + D_TSS) + log(recomb)
+logit(P(Sw > 0)) ~ Fw + log(1 + D_TSS) + log(1 + Rw) + C(chrom)
 Линейная регрессия (только окна с eQTL)
-Sw ~ Fw + log(1 + D_TSS) + log(recomb)
+Sw ~ Fw + log(1 + D_TSS) + log(1 + Rw) + log(1 + Nw) + C(chrom)
 2.3 Валидация: Block Bootstrap Mann-Whitney
 - Сравнение Sw: интрогрессия (Fw > 0) и контроль (Fw = 0)
 - Отдельно для Promoter / Near / Distal
@@ -111,6 +114,7 @@ Sw ~ Fw + log(1 + D_TSS) + log(recomb)
 ```
 
 ## 5. Визуализация
+### Для одной хромосомы
 ```
 fig1_iSFS.png/pdf - спектр частот интрогрессии (barplot, log-шкала)
 fig2_manhattan.png/pdf - Manhattan plot Fw (chr6)
@@ -118,6 +122,21 @@ fig3_violin_boxplot.png/pdf - Violin + Boxplot: Fw_bin и Sw
 fig4_split_violin.png/pdf - Split Violin: интрогрессия и  контроль по D_TSS
 fig5_scatter_adaptive.png/pdf - Scatter Fw и Sw
 fig6_summary_panel.png/pdf - все результаты
+```
+### Для всех хромосом
+```
+adaptive_introgression_scatter.png - кандидаты адаптивной интрогрессии
+introgression_bin_barplot.png - спектр частот интрогрессии
+introgression_manhattan.png - Manhattan график частоты интрогрессии 
+Sw_by_freq_bin_violin.png - Sw по частотному интервалу интрогрессии 
+stratified_control_violin.png - контроль Fw = 0 и Fw > 0 c категориями DTSS
+```
+
+## 6. Запуск и графики с callability для всех хромосом
+
+```bash
+nohup ./scripts/preprocess_pipeline_A_genome.sh 8 max_absx > 1.log 2>&1 &
+nohup ./scripts/main.analysis.genome.sh violin max_absz >2.log 2>&1 &
 ```
 
 ## Запуск для всех
@@ -135,10 +154,3 @@ bash run_all_chromosomes_without_callable.sh 2>&1 | tee results/logs/all_chromos
 ```
 
 ### Теперь можно скачать картинки себе локально
-
-## 6. Запуск и графики с callability для всех хромосом
-
-```bash
-nohup ./scripts/preprocess_pipeline_A_genome.sh 8 max_absx > 1.log 2>&1 &
-nohup ./scripts/main.analysis.genome.sh violin max_absz >2.log 2>&1 &
-```
