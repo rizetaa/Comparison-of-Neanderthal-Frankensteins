@@ -1,8 +1,7 @@
 #!/usr/bin/env python3
-# Скрипт 03: Основной анализ — iSFS, регрессии, bootstrap, адаптивная интрогрессия
-# pandas, numpy, scipy, statsmodels
-# CHR=6 python3 03_main_analysis_universal_v2.py
-# результаты Pipeline A и B
+# Основной анализ, iSFS, регрессии, bootstrap, адаптивная интрогрессия
+# Пререквизиты: pipeline A, B, pandas, numpy, scipy, statsmodels
+# CHR=N python 03_main_analysis_without_callable.py
 
 import pandas as pd
 import numpy as np
@@ -17,7 +16,6 @@ import json
 import sys
 
 warnings.filterwarnings("ignore")
-
 # Переменная окружения для номера хромосомы
 CHR = os.environ.get("CHR", "6")
 
