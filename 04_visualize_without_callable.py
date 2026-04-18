@@ -1,16 +1,12 @@
 #!/usr/bin/env python3
-# =============================================================================
-# Скрипт 04: Визуализация всех результатов анализа
-# =============================================================================
-# Зависимости: matplotlib, seaborn, pandas, numpy, scipy, json
-# Запуск: CHR=6 python3 04_visualize_universal_v2.py
-# Требует: результаты 03_main_analysis_universal_v2.py
-# =============================================================================
+# Визуализация всех результатов анализа
+# Пререквизиты: pipeline A, B, main analysis, matplotlib, seaborn, pandas, numpy, scipy, json
+# CHR=N python 04_visualize_without_callable.py
 
 import pandas as pd
 import numpy as np
 import matplotlib
-matplotlib.use("Agg")  # без GUI (для сервера)
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import matplotlib.patches as mpatches
 import seaborn as sns
@@ -21,9 +17,7 @@ import warnings
 
 warnings.filterwarnings("ignore")
 
-# Переменная окружения для номера хромосомы
 CHR = os.environ.get("CHR", "6")
-
 WORKDIR = os.path.expanduser("~/nd_pipeline")
 OUT_A   = f"{WORKDIR}/results/chr{CHR}/pipeline_A"
 OUT     = f"{WORKDIR}/results/chr{CHR}/analysis"
@@ -43,15 +37,8 @@ PALETTE = {
 FREQ_ORDER = ["Zero", "Rare", "Low", "Intermediate", "High", "Very_High"]
 FREQ_ORDER_NONZERO = ["Rare", "Low", "Intermediate", "High", "Very_High"]
 
-print("=" * 60)
-print(f"ВИЗУАЛИЗАЦИЯ: chr{CHR} Неандертальская интрогрессия")
-print("=" * 60)
-
-# =============================================================================
-# РИСУНОК 1: iSFS — Спектр частот интрогрессии
-# =============================================================================
-print("\n[Fig 1] iSFS — Спектр частот интрогрессии...")
-
+print(f"Визуализация: chr{CHR} Неандертальская интрогрессия")
+print("\n[Fig 1] iSFS - Спектр частот интрогрессии")
 isfs = pd.read_csv(f"{OUT}/isfs.tsv", sep="\t")
 isfs = isfs.set_index("freq_bin").reindex(FREQ_ORDER).reset_index()
 isfs["n_windows"] = isfs["n_windows"].fillna(0).astype(int)
@@ -79,13 +66,8 @@ fig.savefig(f"{FIGS}/fig1_iSFS.pdf", bbox_inches="tight")
 plt.close()
 print(f"  Сохранено: {FIGS}/fig1_iSFS.png")
 
-# =============================================================================
-# РИСУНОК 2: Manhattan plot интрогрессии
-# =============================================================================
-print("[Fig 2] Manhattan plot интрогрессии...")
-
+print("[Fig 2] Manhattan plot интрогрессии")
 manhattan = pd.read_csv(f"{OUT}/manhattan_data.tsv", sep="\t")
-
 fig, ax = plt.subplots(figsize=(14, 4))
 colors_man = [PALETTE.get(b, "#888888") for b in manhattan["freq_bin"]]
 ax.scatter(
@@ -97,10 +79,9 @@ ax.set_xlabel(f"Позиция на chr{CHR} (Mb)", fontsize=13)
 ax.set_ylabel("Частота интрогрессии (Fw)", fontsize=13)
 ax.set_title(f"Manhattan plot неандертальской интрогрессии (chr{CHR})", fontsize=14)
 
-# Определяем лимит по оси X на основе данных
+# Лимит по оси X на основе данных
 max_pos_mb = manhattan["win_start"].max() / 1e6
 ax.set_xlim(0, max_pos_mb * 1.05)
-
 # Легенда
 legend_patches = [
     mpatches.Patch(color=PALETTE[b], label=b) for b in FREQ_ORDER if b != "Zero"
@@ -113,19 +94,13 @@ fig.savefig(f"{FIGS}/fig2_manhattan.pdf", bbox_inches="tight")
 plt.close()
 print(f"  Сохранено: {FIGS}/fig2_manhattan.png")
 
-# =============================================================================
-# РИСУНОК 3: Boxplot / Violin — Fw_bin vs Sw (очищающий отбор)
-# =============================================================================
-print("[Fig 3] Boxplot Fw_bin vs Sw...")
-
+print("[Fig 3] Boxplot Fw_bin vs Sw")
 boxplot_data = pd.read_csv(f"{OUT}/boxplot_data.tsv", sep="\t")
 boxplot_data = boxplot_data[boxplot_data["freq_bin"].isin(FREQ_ORDER_NONZERO)]
 boxplot_data["freq_bin"] = pd.Categorical(
     boxplot_data["freq_bin"], categories=FREQ_ORDER_NONZERO, ordered=True
 )
-
 fig, axes = plt.subplots(1, 2, figsize=(14, 6))
-
 # Violin plot
 ax = axes[0]
 sns.violinplot(
@@ -136,14 +111,12 @@ sns.violinplot(
 ax.set_xlabel("Бин частоты интрогрессии", fontsize=12)
 ax.set_ylabel("Сила eQTL (Sw = max|Z|)", fontsize=12)
 ax.set_title(f"Violin plot: Fw_bin vs Sw\n(chr{CHR}, Fw > 0)", fontsize=13)
-
 # Медианы
 medians = boxplot_data.groupby("freq_bin", observed=True)["Sw_max"].median()
 for i, b in enumerate(FREQ_ORDER_NONZERO):
     if b in medians.index:
         ax.text(i, medians[b] + 0.1, f"{medians[b]:.2f}",
                 ha="center", va="bottom", fontsize=9, color="black", fontweight="bold")
-
 # Boxplot
 ax2 = axes[1]
 sns.boxplot(
@@ -173,16 +146,12 @@ fig.savefig(f"{FIGS}/fig3_violin_boxplot.pdf", bbox_inches="tight")
 plt.close()
 print(f"  Сохранено: {FIGS}/fig3_violin_boxplot.png")
 
-# =============================================================================
-# РИСУНОК 4: Split Violin — Интрогрессия vs Контроль по D_TSS категориям
-# =============================================================================
-print("[Fig 4] Split Violin — Интрогрессия vs Контроль...")
 
+print("[Fig 4] Split Violin — Интрогрессия vs Контроль")
 violin_data = pd.read_csv(f"{OUT}/violin_data.tsv", sep="\t")
 dtss_cats = ["Promoter", "Near", "Distal"]
 violin_data = violin_data[violin_data["dtss_cat"].isin(dtss_cats)]
-
-# Загружаем bootstrap результаты для p-value звёздочек
+# Загружаем bootstrap результаты для p-value звездочек
 try:
     with open(f"{OUT}/bootstrap_results.json") as f:
         boot_res = json.load(f)
@@ -197,18 +166,16 @@ def pval_stars(p):
 
 fig, axes = plt.subplots(1, 3, figsize=(15, 6), sharey=True)
 colors_split = {"Introgressed": "#E74C3C", "Control": "#3498DB"}
-
 for i, cat in enumerate(dtss_cats):
     ax = axes[i]
     cat_data = violin_data[violin_data["dtss_cat"] == cat]
-    
     if len(cat_data) == 0:
         ax.set_title(f"{cat}\n(нет данных)")
         continue
     
-    # Split violin (совместимо с seaborn >= 0.12 и < 0.12)
+    # Split violin (с seaborn >= 0.12 и < 0.12)
     try:
-        # seaborn >= 0.12: параметр split убран, используем hue + dodge
+        # seaborn >= 0.12: без split, используем hue + dodge
         sns.violinplot(
             data=cat_data, x="dtss_cat", y="Sw_max", hue="group",
             inner="box", ax=ax,
@@ -223,14 +190,13 @@ for i, cat in enumerate(dtss_cats):
             palette=colors_split, cut=0,
             order=[cat]
         )
-
     # Медианы
     for grp, color in colors_split.items():
         grp_data = cat_data[cat_data["group"] == grp]["Sw_max"].dropna()
         if len(grp_data) > 0:
             med = grp_data.median()
             ax.axhline(med, color=color, linestyle=":", linewidth=1.5, alpha=0.8)
-
+            
     # p-value из bootstrap
     if cat in boot_res and "pval_bootstrap" in boot_res[cat]:
         p = boot_res[cat]["pval_bootstrap"]
@@ -244,7 +210,6 @@ for i, cat in enumerate(dtss_cats):
         )
     else:
         ax.set_title(f"{cat}", fontsize=11)
-
     ax.set_xlabel("")
     if i == 0:
         ax.set_ylabel("Сила eQTL (Sw = max|Z|)", fontsize=12)
@@ -254,7 +219,7 @@ for i, cat in enumerate(dtss_cats):
     if legend is not None:
         legend.remove()
 
-# Общая легенда
+# Легенда
 legend_patches = [
     mpatches.Patch(color=colors_split["Introgressed"], label="Интрогрессия (Fw > 0)"),
     mpatches.Patch(color=colors_split["Control"],      label="Контроль (Fw = 0)"),
@@ -269,13 +234,8 @@ fig.savefig(f"{FIGS}/fig4_split_violin.pdf", bbox_inches="tight")
 plt.close()
 print(f"  Сохранено: {FIGS}/fig4_split_violin.png")
 
-# =============================================================================
-# РИСУНОК 5: Scatter plot — Fw vs Sw (адаптивная интрогрессия)
-# =============================================================================
-print("[Fig 5] Scatter plot Fw vs Sw (адаптивная интрогрессия)...")
-
+print("[Fig 5] Scatter plot Fw vs Sw (адаптивная интрогрессия)")
 scatter = pd.read_csv(f"{OUT}/scatter_data.tsv", sep="\t")
-
 try:
     with open(f"{OUT}/thresholds.json") as f:
         thresholds = json.load(f)
@@ -286,19 +246,16 @@ except:
     Sw_95 = scatter["Sw_max"].quantile(0.95)
 
 fig, ax = plt.subplots(figsize=(10, 7))
-
 # Фоновые точки
 non_cand = scatter[scatter["is_candidate"] == 0]
 ax.scatter(non_cand["Fw"], non_cand["Sw_max"],
            c="#AAAAAA", s=8, alpha=0.4, linewidths=0, label="Остальные окна")
-
 # Кандидаты
 cand = scatter[scatter["is_candidate"] == 1]
 ax.scatter(cand["Fw"], cand["Sw_max"],
            c="#E74C3C", s=40, alpha=0.9, linewidths=0.5,
            edgecolors="darkred", label=f"Кандидаты (n={len(cand)})", zorder=5)
-
-# Подписи генов для топ-кандидатов
+# Генов для топ-кандидатов
 if "nearest_gene" in cand.columns and len(cand) > 0:
     top_cand = cand.nlargest(min(15, len(cand)), "Sw_max")
     for _, row in top_cand.iterrows():
@@ -311,18 +268,15 @@ if "nearest_gene" in cand.columns and len(cand) > 0:
                 fontsize=7, color="darkred",
                 arrowprops=dict(arrowstyle="-", color="gray", lw=0.5)
             )
-
 # Пороговые линии
 ax.axvline(Fw_95, color="#E74C3C", linestyle="--", linewidth=1.2,
            label=f"Fw 95% = {Fw_95:.3f}", alpha=0.7)
 ax.axhline(Sw_95, color="#3498DB", linestyle="--", linewidth=1.2,
            label=f"Sw 95% = {Sw_95:.2f}", alpha=0.7)
-
 # Выделяем правый верхний квадрант
 ax.fill_betweenx([Sw_95, scatter["Sw_max"].max() * 1.05],
                   Fw_95, scatter["Fw"].max() * 1.05,
                   alpha=0.08, color="#E74C3C")
-
 ax.set_xlabel("Частота интрогрессии (Fw)", fontsize=13)
 ax.set_ylabel("Сила eQTL (Sw = max|Z|)", fontsize=13)
 ax.set_title(f"Адаптивная интрогрессия: Fw vs Sw\n(chr{CHR}, топ-5% по обоим критериям)", fontsize=14)
@@ -333,11 +287,7 @@ fig.savefig(f"{FIGS}/fig5_scatter_adaptive.pdf", bbox_inches="tight")
 plt.close()
 print(f"  Сохранено: {FIGS}/fig5_scatter_adaptive.png")
 
-# =============================================================================
-# РИСУНОК 6: Сводная панель (Summary panel)
-# =============================================================================
-print("[Fig 6] Сводная панель...")
-
+print("[Fig 6] Сводная панель")
 fig = plt.figure(figsize=(16, 12))
 gs = fig.add_gridspec(3, 3, hspace=0.45, wspace=0.35)
 
@@ -355,7 +305,7 @@ ax_isfs.set_xlabel("Бин частоты", fontsize=9)
 ax_isfs.set_ylabel("Кол-во окон (log)", fontsize=9)
 ax_isfs.tick_params(axis="x", rotation=30, labelsize=8)
 
-# 6b: Manhattan (упрощённый)
+# 6b: Manhattan
 ax_man = fig.add_subplot(gs[0, 1:])
 ax_man.scatter(
     manhattan["win_start"] / 1e6, manhattan["Fw"],
@@ -425,11 +375,6 @@ fig.savefig(f"{FIGS}/fig6_summary_panel.png", dpi=150, bbox_inches="tight")
 fig.savefig(f"{FIGS}/fig6_summary_panel.pdf", bbox_inches="tight")
 plt.close()
 print(f"  Сохранено: {FIGS}/fig6_summary_panel.png")
-
-# =============================================================================
-# ИТОГ
-# =============================================================================
-print("\n" + "=" * 60)
 print("Все рисунки сохранены в:", FIGS)
 print("  fig1_iSFS.png/pdf              — Спектр частот интрогрессии")
 print("  fig2_manhattan.png/pdf         — Manhattan plot")
