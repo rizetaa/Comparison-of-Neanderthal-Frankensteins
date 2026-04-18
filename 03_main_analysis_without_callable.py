@@ -16,20 +16,18 @@ import json
 import sys
 
 warnings.filterwarnings("ignore")
+
 # Переменная окружения для номера хромосомы
 CHR = os.environ.get("CHR", "6")
-
 WORKDIR = os.path.expanduser("~/nd_pipeline")
 OUT_A   = f"{WORKDIR}/results/chr{CHR}/pipeline_A"
 OUT_B   = f"{WORKDIR}/results/chr{CHR}/pipeline_B"
 OUT     = f"{WORKDIR}/results/chr{CHR}/analysis"
 os.makedirs(OUT, exist_ok=True)
 
-print(f"ОСНОВНОЙ АНАЛИЗ: eQTL-влияние неандертальской интрогрессии (chr{CHR})")
-
-print("\n[1] Загрузка данных...")
-
-# Пробуем загрузить финальную матрицу Pipeline B, иначе Pipeline A
+print(f"Основной анализ: eQTL-влияние неандертальской интрогрессии (chr{CHR})")
+print("\n[1] Загрузка данных")
+# Загрузка финальной матрицы Pipeline B, иначе Pipeline A
 final_b = f"{OUT_B}/chr{CHR}_windows_final.tsv"
 final_a = f"{OUT_A}/chr{CHR}_windows_full.tsv"
 
@@ -39,16 +37,14 @@ if os.path.exists(final_b):
 else:
     df = pd.read_csv(final_a, sep="\t")
     print(f"  Загружена матрица Pipeline A: {final_a}")
-
 print(f"  Размер матрицы: {df.shape}")
 print(f"  Колонки: {list(df.columns)}")
-
-# Загружаем ID сегментов для кластеризации ошибок
+# ID сегментов для кластеризации ошибок
 seg_ids_file = f"{OUT_A}/chr{CHR}_window_seg_ids.tsv"
 if os.path.exists(seg_ids_file):
     seg_ids = pd.read_csv(seg_ids_file, sep="\t")
     df = df.merge(seg_ids, on="win_id", how="left")
-    # Для окон без сегмента (Fw=0) присваиваем уникальный ID
+    # Для окон без сегмента (Fw=0) уникальный ID
     max_seg = df["seg_id"].max() if "seg_id" in df.columns else 0
     mask_no_seg = df["seg_id"].isna()
     df.loc[mask_no_seg, "seg_id"] = range(
@@ -56,26 +52,24 @@ if os.path.exists(seg_ids_file):
     )
     df["seg_id"] = df["seg_id"].astype(int)
 else:
-    # Создаём фиктивные seg_id
+    # Создаем фиктивные seg_id
     df["seg_id"] = df["win_id"]
 
-# Проверяем наличие ключевых колонок
+# Наличие ключевых колонок
 required_cols = ["win_id", "Fw", "freq_bin", "Sw_max", "has_eqtl", "D_TSS", "recomb_rate"]
 missing = [c for c in required_cols if c not in df.columns]
 if missing:
-    print(f"  ПРЕДУПРЕЖДЕНИЕ: Отсутствуют колонки: {missing}")
+    print(f"  Предупреждение: Отсутствуют колонки: {missing}")
 
 # Логарифмические трансформации ковариат
 df["log_D_TSS"]    = np.log1p(df["D_TSS"])
 df["log_recomb"]   = np.log(df["recomb_rate"].clip(lower=1e-6))
 df["chr_factor"]   = int(CHR)
-
-# Только окна с Fw > 0 для части анализов
+# Только окна с Fw > 0
 df_introgressed = df[df["Fw"] > 0].copy()
 print(f"  Окон с интрогрессией (Fw > 0): {len(df_introgressed)}")
 print(f"  Окон без интрогрессии (Fw = 0): {(df['Fw'] == 0).sum()}")
-
-print("\n[2.1] Спектр частот интрогрессии (iSFS)...")
+print("\n[2.1] Спектр частот интрогрессии (iSFS)")
 
 freq_bin_order = ["Zero", "Rare", "Low", "Intermediate", "High", "Very_High"]
 isfs = df["freq_bin"].value_counts().reindex(freq_bin_order, fill_value=0)
@@ -88,24 +82,21 @@ isfs_df = isfs_df.sort_values("freq_bin_order")
 isfs_df.to_csv(f"{OUT}/isfs.tsv", sep="\t", index=False)
 print(f"  iSFS:\n{isfs_df[['freq_bin','n_windows']].to_string(index=False)}")
 
-# Статистика Manhattan plot
+# Manhattan plot
 manhattan_df = df[["win_id","win_start","win_end","Fw","freq_bin"]].copy()
 manhattan_df.to_csv(f"{OUT}/manhattan_data.tsv", sep="\t", index=False)
 print(f"  Manhattan данные сохранены: {OUT}/manhattan_data.tsv")
 
-print("\n[2.2] Двухэтапная модель (очищающий отбор)...")
-
+print("\n[2.2] Двухэтапная модель (очищающий отбор)")
 # logit(P(Sw > 0)) ~ Fw + log(1 + D_TSS) + log(recomb) + chr
-print("  Этап 1: Логистическая регрессия (наличие eQTL)...")
+print("  Этап 1: Логистическая регрессия (наличие eQTL)")
 
 df_logit = df[["has_eqtl","Fw","log_D_TSS","log_recomb","seg_id"]].dropna().copy()
-
 try:
     logit_model = smf.logit(
         "has_eqtl ~ Fw + log_D_TSS + log_recomb",
         data=df_logit
     ).fit(disp=False, maxiter=200)
-
     # Clustered Standard Errors
     cov_clust = cov_cluster(logit_model, df_logit["seg_id"].values)
     logit_results = {
@@ -120,12 +111,11 @@ try:
     }
     print(f"    Коэф. Fw: {logit_results['coef_Fw']:.4f} "
           f"(p={logit_results['pval_Fw']:.4e})")
-    print(f"    Pseudo-R²: {logit_results['pseudo_r2']:.4f}")
+    print(f"    Pseudo-R^2: {logit_results['pseudo_r2']:.4f}")
     
     with open(f"{OUT}/logit_results.json", "w") as f:
         json.dump(logit_results, f, indent=2)
-    
-    # Сохраняем полную таблицу коэффициентов
+    # Полная таблица коэффициентов
     logit_summary = pd.DataFrame({
         "variable": logit_model.params.index,
         "coef":     logit_model.params.values,
@@ -134,16 +124,15 @@ try:
     logit_summary.to_csv(f"{OUT}/logit_summary.tsv", sep="\t", index=False)
 
 except Exception as e:
-    print(f"    ОШИБКА логистической регрессии: {e}")
+    print(f"    Ошибка логистической регрессии: {e}")
     logit_results = {}
 
 # Sw ~ Fw + log(1 + D_TSS) + log(recomb) + chr
-print("  Этап 2: Линейная регрессия (сила eQTL | eQTL есть)...")
+print("  Этап 2: Линейная регрессия (сила eQTL | eQTL есть)")
 
 df_lm = df_introgressed[df_introgressed["Sw_max"] > 0][
     ["Sw_max","Fw","log_D_TSS","log_recomb","seg_id"]
 ].dropna().copy()
-
 print(f"    Окон для регрессии: {len(df_lm)}")
 
 if len(df_lm) >= 10:
@@ -152,11 +141,9 @@ if len(df_lm) >= 10:
             "Sw_max ~ Fw + log_D_TSS + log_recomb",
             data=df_lm
         ).fit()
-
         # Clustered Standard Errors
         cov_clust_lm = cov_cluster(lm_model, df_lm["seg_id"].values)
         se_clustered = np.sqrt(np.diag(cov_clust_lm))
-        
         lm_results = {
             "coef_Fw":   float(lm_model.params.get("Fw", np.nan)),
             "se_Fw_clustered": float(se_clustered[
@@ -168,11 +155,10 @@ if len(df_lm) >= 10:
         }
         print(f"    Коэф. Fw: {lm_results['coef_Fw']:.4f} "
               f"(p={lm_results['pval_Fw']:.4e})")
-        print(f"    R²: {lm_results['r2']:.4f}")
+        print(f"    R^2: {lm_results['r2']:.4f}")
         
         with open(f"{OUT}/lm_results.json", "w") as f:
             json.dump(lm_results, f, indent=2)
-        
         lm_summary = pd.DataFrame({
             "variable":       lm_model.params.index,
             "coef":           lm_model.params.values,
@@ -182,13 +168,13 @@ if len(df_lm) >= 10:
         lm_summary.to_csv(f"{OUT}/lm_summary.tsv", sep="\t", index=False)
 
     except Exception as e:
-        print(f"    ОШИБКА линейной регрессии: {e}")
+        print(f"    Ошибка линейной регрессии: {e}")
         lm_results = {}
 else:
     print(f"    Недостаточно данных для регрессии (n={len(df_lm)})")
     lm_results = {}
 
-# Данные для Boxplot/Violin plot (Fw_bin vs Sw)
+# Boxplot/Violin plot (Fw_bin vs Sw)
 boxplot_data = df_introgressed[["win_id","freq_bin","Sw_max","Fw"]].copy()
 boxplot_data.to_csv(f"{OUT}/boxplot_data.tsv", sep="\t", index=False)
 print(f"  Данные для boxplot: {OUT}/boxplot_data.tsv")
@@ -204,33 +190,29 @@ medians.to_csv(f"{OUT}/sw_medians_by_bin.tsv", sep="\t", header=True)
 df_corr = df_introgressed[["Fw","Sw_max"]].dropna()
 if len(df_corr) >= 5:
     rho, pval_rho = stats.spearmanr(df_corr["Fw"], df_corr["Sw_max"])
-    print(f"  Spearman ρ(Fw, Sw): {rho:.4f} (p={pval_rho:.4e})")
+    print(f"  Spearman rho(Fw, Sw): {rho:.4f} (p={pval_rho:.4e})")
     with open(f"{OUT}/spearman_Fw_Sw.json", "w") as f:
         json.dump({"rho": float(rho), "pval": float(pval_rho),
                    "n": len(df_corr)}, f, indent=2)
 
-print("\n[2.3] Валидация: Block Bootstrap Mann-Whitney...")
-
-# Читаем медианную длину сегмента
+print("\n[2.3] Валидация: Block Bootstrap Mann-Whitney")
+# Медианная длина сегмента
 median_seg_len_file = f"{OUT_A}/median_seg_len.txt"
 if os.path.exists(median_seg_len_file):
     with open(median_seg_len_file) as f:
         BLOCK_SIZE = int(f.read().strip())
 else:
-    BLOCK_SIZE = 124000  # дефолт = медиана NIS-сегмента
+    BLOCK_SIZE = 124000  # медиана NIS-сегмента
 print(f"  Размер геномного блока: {BLOCK_SIZE} bp")
 
 N_BOOTSTRAP = 10000
 np.random.seed(42)
-
 dtss_categories = ["Promoter", "Near", "Distal"]
 bootstrap_results = {}
-
 
 def genomic_block_bootstrap(introg_df, ctrl_df, obs_diff, n_boot=10000):
     introg_blocks = introg_df["block_id"].unique()
     ctrl_blocks   = ctrl_df["block_id"].unique()
-
     n_introg_blocks = len(introg_blocks)
     n_ctrl_blocks   = len(ctrl_blocks)
 
@@ -247,14 +229,13 @@ def genomic_block_bootstrap(introg_df, ctrl_df, obs_diff, n_boot=10000):
             ctrl_df.groupby("block_id").size().median()
         ),
     }
-
     if n_introg_blocks == 0 or n_ctrl_blocks == 0:
-        print(f"    ПРЕДУПРЕЖДЕНИЕ: пустые блоки "
+        print(f"    Предупреждение: пустые блоки "
               f"(introg={n_introg_blocks}, ctrl={n_ctrl_blocks}), "
               f"bootstrap пропущен")
         return np.array([obs_diff]), diag
 
-    # Строим словари: block_id → массив Sw_max
+    # Строим словари: block_id -> массив Sw_max
     introg_block_arrays = {
         b: introg_df[introg_df["block_id"] == b]["Sw_max"].values
         for b in introg_blocks
@@ -263,50 +244,42 @@ def genomic_block_bootstrap(introg_df, ctrl_df, obs_diff, n_boot=10000):
         b: ctrl_df[ctrl_df["block_id"] == b]["Sw_max"].values
         for b in ctrl_blocks
     }
-
     boot_diffs = np.empty(n_boot)
 
     for i in range(n_boot):
         if i > 0 and i % 1000 == 0:
-            print(f"      Bootstrap: {i}/{n_boot} итераций...")
+            print(f"      Bootstrap: {i}/{n_boot} итераций")
 
-        # Ресэмплируем блоки с возвращением (размер выборки НЕ фиксируется)
+        # Ресэмплируем блоки с возвращением
+        # Размер выборки не фиксируется
         chosen_introg = introg_blocks[
             np.random.randint(0, n_introg_blocks, size=n_introg_blocks)
         ]
         chosen_ctrl = ctrl_blocks[
             np.random.randint(0, n_ctrl_blocks, size=n_ctrl_blocks)
         ]
-
         boot_introg = np.concatenate([introg_block_arrays[b] for b in chosen_introg])
         boot_ctrl   = np.concatenate([ctrl_block_arrays[b]   for b in chosen_ctrl])
-
         # Пропускаем вырожденные итерации
         if len(boot_introg) == 0 or len(boot_ctrl) == 0:
             boot_diffs[i] = 0.0
             continue
 
         # Разница средних рангов: ctrl - introg
-        # (положительная, если контроль сильнее — гипотеза очищающего отбора)
+        # >0 если контроль сильнее => гипотеза очищающего отбора
         comb_b = np.concatenate([boot_ctrl, boot_introg])
         ranks_b = stats.rankdata(comb_b)
         boot_diffs[i] = ranks_b[:len(boot_ctrl)].mean() - ranks_b[len(boot_ctrl):].mean()
-
     return boot_diffs, diag
-
 
 for cat in dtss_categories:
     print(f"\n  Категория: {cat}")
-
     df_cat = df[df["dtss_cat"] == cat].copy()
-
-    # Группы: интрогрессия (Fw > 0) и контроль (Fw = 0)
+    # Интрогрессия (Fw > 0) и контроль (Fw = 0)
     introg_df_cat = df_cat[df_cat["Fw"] > 0][["win_start", "Sw_max"]].dropna().copy()
     ctrl_df_cat   = df_cat[df_cat["Fw"] == 0][["win_start", "Sw_max"]].dropna().copy()
-
     introg = introg_df_cat["Sw_max"].values
     control = ctrl_df_cat["Sw_max"].values
-
     print(f"    Интрогрессия: n={len(introg)}, Контроль: n={len(control)}")
 
     if len(introg) < 5 or len(control) < 5:
@@ -323,21 +296,19 @@ for cat in dtss_categories:
           f"mean={np.mean(control):.4f}, "
           f"p75={np.percentile(control, 75):.4f}, "
           f"frac_zero={(control == 0).mean():.3f}")
-
     # H1: Sw(контроль) > Sw(интрогрессия)
     stat_obs, pval_mw = mannwhitneyu(control, introg, alternative="greater")
     print(f"    MW U={stat_obs:.0f}, p={pval_mw:.4e} "
           f"(H1: Sw_ctrl > Sw_introg)")
 
-    # Блоки определяются по геномной позиции, а не по seg_id гаплотипов.
-    # Перекрывающиеся сегменты разных гаплотипов зависимы (один локус)
+    # Блоки определяются по геномной позиции, а не по seg_id
+    # Перекрывающиеся сегменты разных гаплотипов зависимы
     introg_df_cat = introg_df_cat.sort_values("win_start").copy()
     ctrl_df_cat   = ctrl_df_cat.sort_values("win_start").copy()
-
     introg_df_cat["block_id"] = (introg_df_cat["win_start"] // BLOCK_SIZE).astype(int)
     ctrl_df_cat["block_id"]   = (ctrl_df_cat["win_start"]   // BLOCK_SIZE).astype(int)
 
-    # Наблюдаемая разница средних рангов (ctrl - introg)
+    # Разница средних рангов (ctrl - introg)
     combined = np.concatenate([control, introg])
     ranks    = stats.rankdata(combined)
     n_ctrl   = len(control)
@@ -345,21 +316,19 @@ for cat in dtss_categories:
     print(f"    Наблюдаемая разница рангов (ctrl−introg): {obs_diff:.4f}")
 
     # Block Bootstrap
-    print(f"    Запуск bootstrap ({N_BOOTSTRAP} итераций)...")
+    print(f"    Запуск bootstrap ({N_BOOTSTRAP} итераций)")
     boot_diffs, diag = genomic_block_bootstrap(
         introg_df_cat, ctrl_df_cat, obs_diff, N_BOOTSTRAP
     )
-
     print(f"    Диагностика блоков:")
     print(f"      Блоков интрогрессии: {diag['n_introg_blocks']} "
           f"(медиана размера: {diag['median_introg_block_size']:.1f} окон)")
     print(f"      Блоков контроля:     {diag['n_ctrl_blocks']} "
           f"(медиана размера: {diag['median_ctrl_block_size']:.1f} окон)")
-
+    
     # p-value: доля итераций, где boot_diff >= obs_diff
-    # (H1: контроль сильнее интрогрессии)
+    # H1: контроль сильнее интрогрессии
     pval_boot = (boot_diffs >= obs_diff).mean()
-
     # Диагностика bootstrap-распределения
     boot_mean = float(np.mean(boot_diffs))
     boot_std  = float(np.std(boot_diffs))
@@ -388,28 +357,25 @@ for cat in dtss_categories:
         "median_introg_block_size": diag["median_introg_block_size"],
         "median_ctrl_block_size":   diag["median_ctrl_block_size"],
     }
-
+    
 with open(f"{OUT}/bootstrap_results.json", "w") as f:
     json.dump(bootstrap_results, f, indent=2)
 print(f"  Bootstrap результаты: {OUT}/bootstrap_results.json")
 
-# Данные для Split Violin plot
+# Split Violin plot
 violin_data = df[["win_id","Fw","Sw_max","dtss_cat","freq_bin"]].copy()
 violin_data["group"] = np.where(violin_data["Fw"] > 0, "Introgressed", "Control")
 violin_data.to_csv(f"{OUT}/violin_data.tsv", sep="\t", index=False)
 
-print("\n[2.4] Поиск кандидатов адаптивной интрогрессии...")
-
+print("\n[2.4] Поиск кандидатов адаптивной интрогрессии")
 # Только окна с Fw > 0
 df_pos = df_introgressed.copy()
-
-# Пороги: топ-5% по Fw и Sw
+# Топ-5% по Fw и Sw
 Fw_95 = df_pos["Fw"].quantile(0.95)
 Sw_95 = df_pos["Sw_max"].quantile(0.95)
 print(f"  Порог Fw (95%): {Fw_95:.4f}")
 print(f"  Порог Sw (95%): {Sw_95:.4f}")
-
-# Кандидаты: оба условия
+# Кандидаты (оба условия)
 candidates = df_pos[
     (df_pos["Fw"] >= Fw_95) &
     (df_pos["Sw_max"] >= Sw_95)
@@ -417,12 +383,9 @@ candidates = df_pos[
 print(f"  Окон-кандидатов адаптивной интрогрессии: {len(candidates)}")
 
 # Группировка кандидатов по генам
-GAP_BP = 500_000  # разрыв > 500 кб → разные кластеры одного гена
-
+GAP_BP = 500_000  # разрыв > 500 кб => разные кластеры одного гена
 if len(candidates) > 0 and "nearest_gene" in candidates.columns:
-
     cand = candidates.sort_values(["nearest_gene", "win_start"]).copy()
-
     # Нумерация кластеров внутри каждого гена
     cluster_ids = []
     cluster_counter = 0
@@ -433,9 +396,8 @@ if len(candidates) > 0 and "nearest_gene" in candidates.columns:
         gene = row["nearest_gene"]
         start = row["win_start"]
         end   = row["win_end"]
-
         if gene != prev_gene:
-            # Новый ген — новый кластер
+            # Новый ген - новый кластер
             cluster_counter += 1
             prev_gene = gene
             prev_end  = end
@@ -444,12 +406,10 @@ if len(candidates) > 0 and "nearest_gene" in candidates.columns:
             if start - prev_end > GAP_BP:
                 cluster_counter += 1
             prev_end = max(prev_end, end)
-
         cluster_ids.append(cluster_counter)
-
     cand["gene_cluster_id"] = cluster_ids
 
-    # Сводная таблица по кластерам (один ген — один или несколько кластеров)
+    # Сводная таблица по кластерам
     gene_clusters = (
         cand.groupby(["gene_cluster_id", "nearest_gene"])
         .agg(
@@ -465,25 +425,22 @@ if len(candidates) > 0 and "nearest_gene" in candidates.columns:
         )
         .reset_index()
     )
-
     # Длина кластера в bp
     gene_clusters["cluster_len_bp"] = (
         gene_clusters["cluster_end"] - gene_clusters["cluster_start"]
     )
-
     # Сортируем: сначала по max_Sw (убывание), затем по max_Fw
     gene_clusters = gene_clusters.sort_values(
         ["max_Sw", "max_Fw"], ascending=False
     ).reset_index(drop=True)
-
+    
     # Добавляем ранг
     gene_clusters.insert(0, "rank", range(1, len(gene_clusters) + 1))
-
     n_genes    = gene_clusters["nearest_gene"].nunique()
     n_clusters = len(gene_clusters)
     print(f"  Уникальных генов-кандидатов: {n_genes}")
     print(f"  Геномных кластеров:          {n_clusters}")
-
+    
     # Топ-20 генов-кандидатов
     print(f"\n  Топ-20 генов-кандидатов (по max_Sw):")
     top20_cols = [
@@ -492,7 +449,6 @@ if len(candidates) > 0 and "nearest_gene" in candidates.columns:
         "max_Fw", "max_Sw", "mean_Sw", "dtss_cats", "freq_bins",
     ]
     print(gene_clusters[top20_cols].head(20).to_string(index=False))
-
     # Сохраняем
     cand.to_csv(f"{OUT}/adaptive_candidates.tsv", sep="\t", index=False)
     gene_clusters.to_csv(
@@ -503,14 +459,14 @@ if len(candidates) > 0 and "nearest_gene" in candidates.columns:
     print(f"    {OUT}/adaptive_candidates_by_gene.tsv  (гены/кластеры)")
 
 elif len(candidates) > 0:
-    # nearest_gene отсутствует — сохраняем без группировки
+    # nearest_gene отсутствует => сохраняем без группировки
     candidates.to_csv(f"{OUT}/adaptive_candidates.tsv", sep="\t", index=False)
     print(f"  Сохранено: {OUT}/adaptive_candidates.tsv")
     gene_clusters = pd.DataFrame()
 else:
     gene_clusters = pd.DataFrame()
-
-# Данные для Scatter plot (Fw vs Sw)
+    
+# Scatter plot (Fw vs Sw)
 scatter_data = df_pos[["win_id","win_start","win_end","Fw","Sw_max",
                          "freq_bin","nearest_gene","dtss_cat"]].copy()
 scatter_data["is_candidate"] = (
@@ -518,18 +474,15 @@ scatter_data["is_candidate"] = (
     (scatter_data["Sw_max"] >= Sw_95)
 ).astype(int)
 scatter_data.to_csv(f"{OUT}/scatter_data.tsv", sep="\t", index=False)
-
 # Сохраняем пороги
 thresholds = {"Fw_95": float(Fw_95), "Sw_95": float(Sw_95)}
 with open(f"{OUT}/thresholds.json", "w") as f:
     json.dump(thresholds, f, indent=2)
-
+    
 n_candidate_genes    = int(gene_clusters["nearest_gene"].nunique()) \
                        if len(gene_clusters) > 0 else 0
 n_candidate_clusters = int(len(gene_clusters))
 
-print("\n" + "=" * 70)
-print("ИТОГОВЫЙ ОТЧЁТ")
 print(f"  Хромосома: {CHR}")
 print(f"  Всего окон: {len(df)}")
 print(f"  Окон с интрогрессией: {len(df_introgressed)} "
@@ -555,5 +508,4 @@ summary = {
 }
 with open(f"{OUT}/analysis_summary.json", "w") as f:
     json.dump(summary, f, indent=2)
-
-print(f"\nАнализ завершён. Все результаты в: {OUT}/")
+print(f"\nАнализ завершен. Все результаты в: {OUT}/")
