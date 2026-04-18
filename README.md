@@ -165,14 +165,14 @@ which parallel
 sudo apt-get install parallel
 ```
 
-## Запустить параллельную обработку
+### Запустить параллельную обработку
 
 ```bash
 cd ~/nd_pipeline
 bash run_all_chromosomes_v2.sh 2>&1 | tee results/logs/all_chromosomes.log
 ```
 
-## Теперь можно скачать картинки локально
+### Теперь можно скачать картинки локально
 
 ## 6. Запуск с callability для всех хромосом
 
