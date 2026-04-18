@@ -2,6 +2,8 @@
 # variant_id, gene_id, slope, slope_se, pval_nominal
 
 from __future__ import annotations
+from concurrent.futures import ProcessPoolExecutor
+from pathlib import Path
 
 import argparse
 import glob
@@ -10,9 +12,6 @@ import re
 import shutil
 import subprocess
 import sys
-from concurrent.futures import ProcessPoolExecutor
-from pathlib import Path
-
 import numpy as np
 import pandas as pd
 
