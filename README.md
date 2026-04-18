@@ -69,7 +69,7 @@ CHR=6 bash run_chromosome_without_callable.sh 2>&1 | tee results/chr6/logs/chr6_
 4. Фильтруем GTEx v7 eQTL: только chr6, FDR < 0.05, биаллельные SNP
 5. Пересекаем eQTL с окнами
 6. Proxy-clumping: для каждой тройки (окно, ткань, ген) -> lead SNP с max|Z|
-7. Агрегируем Sw,t = max_g |Z_lead|
+7. Агрегируем Sw,t = max|Z_lead|
 8. Извлекаем TSS из GENCODE v19, вычисляем D_TSS
 9. Категоризируем окна: Promoter (<5 kb) / Near (5–50 kb) / Distal (>=50 kb)
 10. Вычисляем среднюю скорость рекомбинации из HapMap II
