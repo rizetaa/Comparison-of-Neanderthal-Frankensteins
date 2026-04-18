@@ -1,14 +1,13 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+from pathlib import Path
 
 import argparse
 import re
 import shutil
 import subprocess
 import sys
-from pathlib import Path
-
 import pandas as pd
 
 def parse_args() -> argparse.Namespace:
