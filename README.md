@@ -16,7 +16,7 @@
 │   ├── 02_pipeline_B_without_callable.sh
 │   ├── 03_main_analysis_without_callable.py
 │   ├── 04_visualize_without_callable.py
-|   └── ...
+|   └── ...                           # C callability
 ├── results/
 │   ├── chr1/
 │   │   ├── pipeline_A/
