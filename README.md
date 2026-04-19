@@ -3,36 +3,27 @@
 ## 1. Получение NIS-сегментов
 
 ### Пайплайн для одной хромосомы
-#### Ограничиваем данные, выполняем фильтрацию 1000 геномов VCF-файлов
-
 ```bash
+# Ограничиваем данные, выполняем фильтрацию 1000 геномов VCF-файлов
 python daiseg.py restrict_1kG -json all.chr22.json -threads 8
-```
 
-### Callability Mask
-Вычисляем геномные окна, которые доступны для анализа (фильтр маски)
-```bash
+# Callability Mask
+# Вычисляем геномные окна, которые доступны для анализа (фильтр маски)
 python daiseg.py callability -json all.chr22.json -threads 8
-```
 
-### Предварительная обработка
-Объединяем VCF, фильтруем SNP и создает матрицу наблюдений .tsv
-```bash
+# Предварительная обработка
+# Объединяем VCF, фильтруем SNP и создает матрицу наблюдений .tsv
 python daiseg.py main.prep -json all.chr22.json -threads 8
-```
 
-### Обучение HMM
-Запускаем скрытую марковскую модель для вывода путей интрогрессии
-```bash
+# Обучение HMM
+# Запускаем скрытую марковскую модель для вывода путей интрогрессии
 python daiseg.py run -json all.chr22.json
-```
 
-### Используем EM алгоритм для оценки
-```bash
+# Используем EM алгоритм для оценки
 python daiseg.py run.with.EM -json all.chr22.json
 ```
 
-### Полный конвейерный скрипт
+### Для всех хромосом
 
 ```bash
 #!/bin/bash
@@ -51,6 +42,8 @@ python daiseg.py main.prep -json $CONF -threads $THR
 
 echo "--- [4/4] Running HMM  ---"
 python daiseg.py run -json $CONF
+
+echo "Пайплайн завершился успешно"
 ```
 
 ## Структура файлов
