@@ -1,6 +1,57 @@
 # Пайплайн eQTL-влияние неандертальской интрогрессии
 
-## пару слов про DAIseg и получение файлов IBS.YRI.grch37.chrN.em.tsv
+## 1. Получение NIS-сегментов
+
+### Пайплайн для одной хромосомы
+#### Ограничиваем данные, выполняем фильтрацию 1000 геномов VCF-файлов
+
+```bash
+python daiseg.py restrict_1kG -json all.chr22.json -threads 8
+```
+
+### Callability Mask
+Вычисляем геномные окна, которые доступны для анализа (фильтр маски)
+```bash
+python daiseg.py callability -json all.chr22.json -threads 8
+```
+
+### Предварительная обработка
+Объединяем VCF, фильтруем SNP и создает матрицу наблюдений .tsv
+```bash
+python daiseg.py main.prep -json all.chr22.json -threads 8
+```
+
+### Обучение HMM
+Запускаем скрытую марковскую модель для вывода путей интрогрессии
+```bash
+python daiseg.py run -json all.chr22.json
+```
+
+### Используем EM алгоритм для оценки
+```bash
+python daiseg.py run.with.EM -json all.chr22.json
+```
+
+### Полный конвейерный скрипт
+
+```bash
+#!/bin/bash
+
+CONF="all.chr22.json"
+THR=8
+
+echo "--- [1/4] Restricting 1000 Genomes ---"
+python daiseg.py restrict_1kG -json $CONF -threads $THR
+
+echo "--- [2/4] Calculating Callability ---"
+python daiseg.py callability -json $CONF -threads $THR
+
+echo "--- [3/4] Preprocessing Observations (VCF -> TSV) ---"
+python daiseg.py main.prep -json $CONF -threads $THR
+
+echo "--- [4/4] Running HMM  ---"
+python daiseg.py run -json $CONF
+```
 
 ## Структура файлов
 ```
@@ -31,34 +82,34 @@
 │   └── ...
 └── logs/
 ```
-## 0. Подготовка
+## 2. Подготовка
 
-### Создание структуры директории
+### Создаем структуру директории
 ```bash
 mkdir -p ~/nd_pipeline/{data/{raw,hapmap,gtex,vindija,gencode},scripts,results,logs}
 ```
-### Копирование tsv-файла на сервер
+### Копируем tsv-файлы
 
-## 1. Скачивание данных
+## 3. Скачивание данных
 
 ```bash
 cd ~/nd_pipeline
 ```
-### Выполнить все, что указано в 00_download_data.sh
+### Выполняем все, что указано в 00_download_data.sh
 
-## Установить права на выполнение
+## Устанавливаем право на выполнение
 
 ```bash
 cd ~/nd_pipeline
 chmod +x "имя файла"
 ```
-## Тестовый запуск для одной хромосомы
+## Можно сделать тестовый запуск для одной хромосомы
 ```bash
 cd ~/nd_pipeline
 CHR=6 bash run_chromosome_without_callable.sh 2>&1 | tee results/chr6/logs/chr6_test.log
 ```
 
-## 2. Pipeline A (препроцессинг)
+## 4. Pipeline A (препроцессинг)
 ```
 Подготовка данных для основного анализа 
 1. Нарезаем chr6 на окна 1000 bp
@@ -76,7 +127,7 @@ CHR=6 bash run_chromosome_without_callable.sh 2>&1 | tee results/chr6/logs/chr6_
 Итоговый файл: results/pipeline_A/chr6_windows_full.tsv
 ```
 
-## 3. Pipeline B (субпопуляции и поляризация Vindija)
+## 5. Pipeline B (субпопуляции и поляризация Vindija)
 ```
 Подготовка данных для cпецанализа
 1. Группируем гаплотипы по субпопуляциям
@@ -95,7 +146,7 @@ vw = (callable bp in w) / 1000
 Итоговый файл: results/pipeline_B/chr6_windows_final.tsv
 ```
 
-## 4. Основной анализ
+## 6. Основной анализ
 ```
 2.1 Спектр частот (iSFS)
 - Гистограмма распределения окон по бинам частот
@@ -115,7 +166,7 @@ Sw ~ Fw + log(1 + D_TSS) + log(1 + Rw) + log(1 + Nw) + C(chrom)
  Scatter plot Fw и Sw с генами-мишенями
 ```
 
-## 5. Визуализация
+## 7. Визуализация
 ### Для одной хромосомы
 ```
 fig1_iSFS.png/pdf - спектр частот интрогрессии (barplot, log-шкала)
@@ -134,25 +185,25 @@ Sw_by_freq_bin_violin.png - Sw по частотному интервалу ин
 stratified_control_violin.png - контроль Fw = 0 и Fw > 0 c категориями DTSS
 ```
 
-## 6. Запуск и графики с callability для всех хромосом
+## 8. Запускаем и строим графики с callability для всех хромосом
 
 ```bash
 nohup ./scripts/preprocess_pipeline_A_genome.sh 8 max_absx > 1.log 2>&1 &
 nohup ./scripts/main.analysis.genome.sh violin max_absz >2.log 2>&1 &
 ```
 
-### Запуск для всех
+### Запускаем для всех
 
 ```bash
 sudo apt-get install parallel
 which parallel
 ```
 
-### Запустить параллельную обработку
+### Запускаем параллельную обработку
 
 ```bash
 cd ~/nd_pipeline
 bash run_all_chromosomes_without_callable.sh 2>&1 | tee results/logs/all_chromosomes.log
 ```
 
-### Теперь можно скачать картинки себе локально
+### Теперь можем скачать картинки себе локально
